@@ -26,3 +26,5 @@ sbatch submit_mpi.sh
 ```
 > [!NOTE]
 > You may need to change some of the SLURM directives
+
+if you are testing new features you may want to run like this: `julia --project=. ./main.jl 2>&1 | tee -a output.txt`
