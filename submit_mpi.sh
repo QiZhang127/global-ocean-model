@@ -1,12 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=1deg_physbgc_alk
+#SBATCH --job-name=mpi
 #SBATCH --account=pi_me586
 #SBATCH --time=6:00:00
 #SBATCH --ntasks=2
 #SBATCH --partition gpu_h200
 #SBATCH --gpus-per-task=h200:1
 #SBATCH --cpus-per-task 2
-#SBATCH --mem-per-cpu=20G
+#SBATCH --mem=80G
+
+# 
+# NOTE: use --mem instead of --mem-per-cpu
+# otherwise get the following error
+# srun: fatal: SLURM_MEM_PER_CPU, SLURM_MEM_PER_GPU, and SLURM_MEM_PER_NODE are mutually exclusive.
+#
 
 #----------------------------------------------------------------------
 # MODULES: loads necssary modules
@@ -43,7 +49,9 @@ export JULIA_DEPOT_PATH=/home/${USER}/project_pi_me586/${USER}/julia_depot
 # ROOT: makes writing file paths easier, but is not completely necessary
 #----------------------------------------------------------------------
 
-ROOT=/home/${USER}/project_pi_me586/${USER}/global_ocean_model
+ROOT=/home/${USER}/project_pi_me586/${USER}/global-ocean-model
+
+[ ! -d $ROOT ] && echo "ERROR: $ROOT directory does not exist"
 
 #----------------------------------------------------------------------
 # SIMULATION: Path to simulation file you want to run
@@ -51,6 +59,8 @@ ROOT=/home/${USER}/project_pi_me586/${USER}/global_ocean_model
 #----------------------------------------------------------------------
 
 SIMULATION=${ROOT}/main.jl
+
+[ ! -f $SIMULATION ] && echo "ERROR: $SIMULATION file does not exist"
 
 #----------------------------------------------------------------------
 # PROJECT: directory where Project.toml lives
@@ -75,6 +85,10 @@ PROJECT=${ROOT}
 #----------------------------------------------------------------------
 
 source /home/${USER}/.ecco-env 
+
+# copernicus env
+# You can sign up for free at: https://data.marine.copernicus.eu/register.
+source /home/${USER}/.copernicus-env
 
 #----------------------------------------------------------------------
 # SRUN: run the SIMULATION using the specified PROJECT
