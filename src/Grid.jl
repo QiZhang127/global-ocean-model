@@ -1,7 +1,8 @@
 module GridSetup
 
 using Oceananigans: ExponentialDiscretization, TripolarGrid, ImmersedBoundaryGrid
-using Oceananigans.units: meters
+using Oceananigans.Units: meters
+using Oceananigans.ImmersedBoundaries: GridFittedBottom
 using NumericalEarth: regrid_bathymetry
 
 export build_grid

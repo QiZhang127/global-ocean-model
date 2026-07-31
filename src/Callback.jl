@@ -1,6 +1,11 @@
 module CallbackSetup
 
 using Oceananigans
+using Oceananigans: iteration, TimeInterval
+using Oceananigans.Utils: prettytime
+using Oceananigans.Units: days
+using Statistics: mean
+using Printf: @sprintf
 
 export add_progress_callback!
 

@@ -1,41 +1,90 @@
 module BiogeochemistrySetup
 
-using Oceananigans: FieldBoundaryConditions
-using OceanBioME: LOBSTER, CarbonateSystem
-using OceanBioME.Models.GasExchangeModel: CarbonDioxideGasExchangeBoundaryCondition
+using CSV
+using DataFrames
+using Dates
+using Oceananigans: Center, FieldBoundaryConditions, FieldTimeSeries, KernelFunctionOperation
+using OceanBioME: LOBSTER, CarbonateSystem, CarbonChemistry
+using OceanBioME.Models.GasExchangeModel: CarbonDioxideGasExchangeBoundaryCondition, CarbonDioxideConcentration
+using OceanBioME.Models.GasExchangeModel.ScaledGasTransferVelocity: JRA55
 
 export build_bgc
 
 function build_bgc(grid)
 
-    bgc = LOBSTER(
+    biogeochemistry = LOBSTER(
         grid;
-        carbonate_system = CarbonateSystem(2)
+	    inorganic_carbon = CarbonateSystem(2)
     )
 
+    # set the transfer velocity scale factor to match the wind product
+
+    transfer_velocity = JRA55()
+
+    # prescibe the wind speed in the gas transfer
+    #wind_speed = sqrt(atmosphere.velocities.u^2 + atmosphere.velocities.v^2)
+
+    wind_speed = 2
+
+    # !TODO
+    # need to have air_concentration in CarbonDioxideGasExchangeBoundaryCondition be prscribed
+    # currently working on have it prescribed from the Mauna Loa time series.
+    # for now we will set it to a constant
+
+    #air_concentration = 420
+
+    lines = readlines("/home/ljg48/project_pi_me586/ljg48/data/keeling/mlo_spo_monthly_mean.csv")
+
+    header = split(strip(last(filter(startswith("%"), lines)))[2:end])
+
+    df = CSV.read(
+        "/home/ljg48/project_pi_me586/ljg48/data/keeling/mlo_spo_monthly_mean.csv",
+        DataFrame;
+        comment = "%",
+        header = Symbol.(header),
+        delim = ',',
+        ignorerepeated = true,
+    );
+
+    df.time = DateTime.(df.Yr, df.Mn, 15);
+
+    times = df.time;
+    data = df.MLO;
+
+    air_concentration = FieldTimeSeries{Nothing, Nothing, Nothing}(grid, times)
+    air_concentration .= reshape(data, 1, 1, 1, length(air_concentration)) # data is 1D array in time
+
+
+    # set wind speed and air concentration in here
     # -----------------------------------------------------------------
     # TODO: make these a little more descriptive instead of "flux1 and 2"
     # ALK2 is the one that is forced, see Forcing.jl
     # -----------------------------------------------------------------
     CO₂_flux1 =
-        CarbonDioxideGasExchangeBoundaryCondition(
+        CarbonDioxideGasExchangeBoundaryCondition(;
+            transfer_velocity,
+            wind_speed,
+            air_concentration,
             water_concentration =
-                CarbonDioxideConcentration(
+                CarbonDioxideConcentration(;
                     DIC = :DIC1,
                     Alk = :Alk1
                 )
         )
 
     CO₂_flux2 =
-        CarbonDioxideGasExchangeBoundaryCondition(
+        CarbonDioxideGasExchangeBoundaryCondition(;
+            transfer_velocity,
+            wind_speed,
+            air_concentration,
             water_concentration =
-                CarbonDioxideConcentration(
+                CarbonDioxideConcentration(;
                     DIC = :DIC2,
                     Alk = :Alk2
                 )
         )
 
-    bcs = (
+    boundary_conditions = (;
         DIC1 = FieldBoundaryConditions(top = CO₂_flux1),
         DIC2 = FieldBoundaryConditions(top = CO₂_flux2)
     )
@@ -46,8 +95,8 @@ function build_bgc(grid)
     # -----------------------------------------------------------------
     function pco2_kfo(i, j, k, grid, cc, fields)
         @inbounds begin
-            DIC = fields.DIC1[i, j, k]
-            Alk = fields.Alk1[i, j, k]
+            DIC = fields.DIC[i, j, k]
+            Alk = fields.Alk[i, j, k]
             T = fields.T[i, j, k]
             S = fields.S[i, j, k]
         end
@@ -55,9 +104,10 @@ function build_bgc(grid)
         return cc(; DIC, Alk, T, S)
     end
 
-    pco2 = KernelFunctionOperation{Center, Center, Center}(pco2_kfo, grid, CarbonChemistry(), (; DIC1, Alk1, T, S))
+    # TODO: this needs to get moved until after fields are set?
+    #pco2 = KernelFunctionOperation{Center, Center, Center}(pco2_kfo, grid, CarbonChemistry(), (; DIC, Alk, T, S))
 
-    return bgc, bcs, pco2, CO₂_flux1, CO₂_flux2
+    return (; biogeochemistry, boundary_conditions, CO₂_flux1, CO₂_flux2)
 end
 
 end

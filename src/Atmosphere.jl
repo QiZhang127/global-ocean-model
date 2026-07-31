@@ -1,6 +1,7 @@
 module AtmosphereSetup
 
-using CDSAPI
+#using CDSAPI
+using CopernicusClimateDataStore
 using Dates: DateTime
 using NumericalEarth.DataWrangling.ERA5: ERA5PrescribedAtmosphere, ERA5PrescribedRadiation, ERA5MonthlySingleLevel
 
@@ -24,7 +25,7 @@ function build_atmosphere(arch, dates)
         end_date=last(dates)
     )
 
-    return atmosphere, radiation, dates
+    return (; atmosphere, radiation)
 end
 
 end

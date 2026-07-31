@@ -1,7 +1,7 @@
 module ClosureSetup
 
 using Oceananigans.TurbulenceClosures: IsopycnalSkewSymmetricDiffusivity, AdvectiveFormulation
-using NumericalEarth
+using NumericalEarth.Oceans: default_ocean_closure
 
 export build_closure
 
@@ -13,7 +13,7 @@ function build_closure()
         skew_flux_formulation=AdvectiveFormulation()
     )
 
-    vertical =  NumericalEarth.Oceans.default_ocean_closure()
+    vertical = default_ocean_closure()
 
     closure = (eddy, vertical)
     
