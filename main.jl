@@ -40,6 +40,11 @@ using Statistics
 using CUDA
 using CUDA: @allowscalar, device!
 
+# TODO: should not have to to do this
+# was getting error on ->  ~/project_pi_me586/ljg48/julia_depot/packages/NumericalEarth/70NhN/src/Oceans/ocean_simulation.jl:431
+# I think in oceananigans function maybe_extends_halos() in src/multiregion/cubed_sphere_grid.jl      
+CUDA.allowscalar(true)
+
 # ---------------------------------------------------------------------
 # computing architecture
 # ---------------------------------------------------------------------
@@ -119,7 +124,10 @@ bgc_tracers = (:NO₃, :NH₄, :P, :Z, :sPOM, :bPOM, :DOM, :DIC1, :DIC2, :Alk1, 
 tracers = (physics_tracers..., bgc_tracers...)
 
 closure = build_closure()
-free_surface       = SplitExplicitFreeSurface(grid; substeps=70)
+
+# TODO: getting a GPU issue, I think there is a bug in in the oceananigans maybe_extend_halos() function
+#       error originally occures on src/Oceans/ocean_simulation.jl:431
+#free_surface       = SplitExplicitFreeSurface(grid; substeps=70)
 momentum_advection = WENOVectorInvariant(order=7)
 tracer_advection   = WENO(order=7)
 
@@ -127,7 +135,7 @@ ocean = ocean_simulation(
     grid;
     momentum_advection,
     tracer_advection,
-    free_surface,
+    #free_surface,
     tracers,
     forcing,
     closure,
