@@ -1,5 +1,6 @@
 module BiogeochemistrySetup
 
+using CUDA: @allowscalar
 using CSV
 using DataFrames
 using Dates
@@ -51,8 +52,9 @@ function build_bgc(grid)
     times = df.time;
     data = df.MLO;
 
+    # TODO: figure out a way to so I do not have to do an allowscalar
     air_concentration = FieldTimeSeries{Nothing, Nothing, Nothing}(grid, times)
-    air_concentration .= reshape(data, 1, 1, 1, length(air_concentration)) # data is 1D array in time
+    @allowscalar air_concentration .= reshape(data, 1, 1, 1, length(air_concentration)) 
 
 
     # set wind speed and air concentration in here
