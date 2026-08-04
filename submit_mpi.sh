@@ -24,6 +24,13 @@ module purge
 module load Julia/1.12.4-linux-x86_64
 module load OpenMPI/5.0.3-GCC-13.3.0-CUDA-12.6.0
 
+
+#----------------------------------------------------------------------
+# PROJECT_DIR: the main project directory
+#----------------------------------------------------------------------
+
+PROJECT_DIR=project_pi_me586
+
 #----------------------------------------------------------------------
 # EXPORTS: these statements are necessary for CUDA-MPI to work properly
 # ** Note -> not all of these may be necssary
@@ -43,13 +50,13 @@ export UCX_ERROR_SIGNALS="SIGILL,SIGBUS,SIGFPE"
 # ** Note -> Best to have this in your project_pi_netID directory
 #----------------------------------------------------------------------
 
-export JULIA_DEPOT_PATH=/home/${USER}/project_pi_me586/${USER}/julia_depot
+export JULIA_DEPOT_PATH=/home/${USER}/${PROJECT_DIR}/${USER}/julia_depot
 
 #----------------------------------------------------------------------
 # ROOT: makes writing file paths easier, but is not completely necessary
 #----------------------------------------------------------------------
 
-ROOT=/home/${USER}/project_pi_me586/${USER}/global-ocean-model
+ROOT=/home/${USER}/${PROJECT_DIR}/${USER}/global-ocean-model
 
 [ ! -d $ROOT ] && echo "ERROR: $ROOT directory does not exist"
 
