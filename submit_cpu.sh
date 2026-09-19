@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=era5
-#SBATCH --account=pi_me586
-#SBATCH --time=8:00:00
+#SBATCH --account=prio_ey239
+#SBATCH --time=24:00:00
 #SBATCH --ntasks=1
-#SBATCH --partition day
+#SBATCH --partition priority
 #SBATCH --cpus-per-task 4
 #SBATCH --mem=80G
 
@@ -41,14 +41,17 @@ export UCX_ERROR_SIGNALS="SIGILL,SIGBUS,SIGFPE"
 # JULIA_DEPOT_PATH: where all downloaded julia packages will live
 # ** Note -> Best to have this in your project_pi_netID directory
 #----------------------------------------------------------------------
-
-export JULIA_DEPOT_PATH=/home/${USER}/project_pi_me586/${USER}/julia_depot
+echo "$USER"
+#export JULIA_DEPOT_PATH=/home/${USER}/project_pi_ey239/${USER}/julia_depot
+export JULIA_DEPOT_PATH=/nfs/roberts/pi/pi_ey239/qi/julia_depot
 
 #----------------------------------------------------------------------
 # ROOT: makes writing file paths easier, but is not completely necessary
 #----------------------------------------------------------------------
 
-ROOT=/home/${USER}/project_pi_me586/${USER}/global-ocean-model
+# ROOT=/home/${USER}/project_pi_ey239/${USER}/global-ocean-model
+
+ROOT=/nfs/roberts/pi/pi_ey239/qi/global-ocean-model
 
 [ ! -d $ROOT ] && echo "ERROR: $ROOT directory does not exist"
 
@@ -61,9 +64,10 @@ ROOT=/home/${USER}/project_pi_me586/${USER}/global-ocean-model
 
 SIMULATION=${ROOT}/utils/download-ecco-darwin.jl
 
-#SIMULATION=${ROOT}/utils/download-era5.jl
+# SIMULATION=${ROOT}/utils/download-era5.jl
+#SIMULATION=${ROOT}/utils/glorys.jl
 
-#SIMULATION=${ROOT}/main_cpu.jl
+# SIMULATION=${ROOT}/main_cpu.jl
 
 [ ! -f $SIMULATION ] && echo "ERROR: $SIMULATION file does not exist"
 
@@ -93,11 +97,45 @@ source /home/${USER}/.ecco-env
 
 # copernicus env
 # You can sign up for free at: https://data.marine.copernicus.eu/register.
-source /home/${USER}/.copernicus-env
 
+# source /home/${USER}/.copernicus-env
+# test -n "$COPERNICUSMARINE_SERVICE_USERNAME" && echo "username is set"
+# test -n "$COPERNICUSMARINE_SERVICE_PASSWORD" && echo "password is set"
 #----------------------------------------------------------------------
 # SRUN: run the SIMULATION using the specified PROJECT
 #----------------------------------------------------------------------
 
-julia --project=${PROJECT} ${SIMULATION}
+# echo "Instantiating Julia environment..."
+# julia --project="${PROJECT}" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+
+# set -e
+
+# echo "Updating ERA5 backend packages..."
+
+# julia --project="${PROJECT}" -e '
+# using Pkg
+# Pkg.Registry.update()
+# Pkg.add(Pkg.PackageSpec(name="NumericalEarth", version="0.6.1"))
+# Pkg.add(Pkg.PackageSpec(name="CopernicusClimateDataStore", version="0.2"))
+# Pkg.resolve()
+# Pkg.precompile()
+# '
+
+# echo "Checking ERA5 backend..."
+
+# julia --project="${PROJECT}" -e '
+# using NumericalEarth
+# using CopernicusClimateDataStore
+
+# extension = Base.get_extension(
+#     NumericalEarth,
+#     :NumericalEarthCopernicusClimateDataStoreExt
+# )
+
+# @assert extension !== nothing "ERA5 download extension did not load"
+# println("ERA5 download extension loaded successfully")
+# '
+
+# echo "Running ${SIMULATION}..."
+julia --project="${PROJECT}" "${SIMULATION}"
 

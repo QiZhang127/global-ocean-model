@@ -21,34 +21,34 @@ end
 const GLODAP_url = "https://www.nodc.noaa.gov/archive/arc0107/0162565/1.1/data/0-data/mapped/GLODAPv2_Mapped_Climatology.tar.gz"
 
 GLODAP_variable_names = Dict(
-    :temperature       => "temperature",
-    :salinity          => "salinity",
-    :phosphate         => "PO4",
-    :nitrate           => "NO3",
-    :silicate          => "silicate",
-    :dissolved_oxygen  => "oxygen",
-    :dic               => "TCO2",
-    :preindustrial_dic => "PI_TCO2",
-    :alkalinity        => "TALK"
-    )
+    :temperature                   => "temperature",
+    :salinity                      => "salinity",
+    :phosphate                     => "PO4",
+    :nitrate                       => "nitrate",
+    :silicate                      => "silicate",
+    :dissolved_oxygen              => "oxygen",
 
-# this is necessary because the variable name in the dataset
-# does not necessarily correspond to what is in the filename
-# Note: We are excluding the following files for now:
-#       GLODAPv2.OmegaCinsitu.nc
-#       GLODAPv2.pHtsinsitu.nc
-#       GLODAPv2.OmegaAinsitu.nc
-#       GLODAPv2.pHts25p0.nc
+    # Keep both names as aliases.
+    :dic                           => "tco2",
+    :dissolved_inorganic_carbon    => "tco2",
+
+    :preindustrial_dic             => "PI_TCO2",
+    :alkalinity                    => "talk",
+)
+
 GLODAP_file_variable_names = Dict(
-    :temperature                => "theta",
-    :salinity                   => "salinity",
-    :phosphate                  => "phosphate",
-    :nitrate                    => "nitrate",
-    :silicate                   => "silicate",
-    :dissolved_oxygen           => "oxygen",
-    :dissolved_inorganic_carbon => "tco2",
-    :alkalinity                 => "talk"
-    )
+    :temperature                   => "theta",
+    :salinity                      => "salinity",
+    :phosphate                     => "phosphate",
+    :nitrate                       => "nitrate",
+    :silicate                      => "silicate",
+    :dissolved_oxygen              => "oxygen",
+
+    :dic                           => "tco2",
+    :dissolved_inorganic_carbon    => "tco2",
+
+    :alkalinity                    => "talk",
+)
 
 # Dataset types
 abstract type GLODAPDataset <:AbstractStaticDataset end
@@ -120,6 +120,53 @@ end
 
 const GLODAPMetadatum   = Metadatum{<:GLODAPDataset}
 
+# NetCDF variable name.
+DataWrangling.dataset_variable_name(metadata::GLODAPMetadatum) =
+    GLODAP_variable_names[metadata.name]
+
+# GLODAP uses -999 for missing values.
+DataWrangling.missing_value(::GLODAPMetadatum) = -999.0
+
+# Mask clearly nonphysical carbonate values before interpolation.
+DataWrangling.lower_bound(
+    ::GLODAPMetadatum,
+    ::Val{:dissolved_inorganic_carbon},
+) = 1000.0
+
+DataWrangling.higher_bound(
+    ::GLODAPMetadatum,
+    ::Val{:dissolved_inorganic_carbon},
+) = 3000.0
+
+DataWrangling.lower_bound(
+    ::GLODAPMetadatum,
+    ::Val{:alkalinity},
+) = 1000.0
+
+DataWrangling.higher_bound(
+    ::GLODAPMetadatum,
+    ::Val{:alkalinity},
+) = 3000.0
+
+# Mask nonphysical nitrate values before interpolation.
+DataWrangling.lower_bound(
+    ::GLODAPMetadatum,
+    ::Val{:nitrate},
+) = 0.0
+
+DataWrangling.higher_bound(
+    ::GLODAPMetadatum,
+    ::Val{:nitrate},
+) = 60.0
+
+# Five inpainting passes may leave large missing regions unresolved.
+# Fully fill missing GLODAP cells before regridding.
+DataWrangling.default_inpainting(::GLODAPMetadatum) =
+    DataWrangling.NearestNeighborInpainting(Inf)
+
+# DataWrangling.dataset_variable_name(data::GLODAPMetadatum) =
+#     GLODAP_variable_names[data.name]
+
 DataWrangling.metaprefix(::GLODAPMetadatum) = "GLODAPMetadatum"
 
 function DataWrangling.metadata_filename(::GLODAPClimatology, name, date, region)
@@ -136,7 +183,9 @@ DataWrangling.is_three_dimensional(::GLODAPMetadatum) = true
 function inpainted_metadata_filename(metadata::GLODAPMetadatum)
     without_extension = metadata.filename[1:end-3]
     var = string(metadata.name)
-    return without_extension * "_" * var * "_inpainted.jld2"
+    return without_extension *
+       "_" * var *
+       "_validated_v2_inpainted.jld2"
 end
 
 DataWrangling.inpainted_metadata_path(metadata::GLODAPMetadatum) = joinpath(metadata.dir, inpainted_metadata_filename(metadata))

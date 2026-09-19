@@ -1,65 +1,92 @@
 module OutputSetup
 
-
-using NCDatasets
-using Oceananigans: JLD2Writer, NetCDFWriter, AveragedTimeInterval, TimeInterval
+using Oceananigans: JLD2Writer, TimeInterval
 using Oceananigans.Units: days
+using Oceananigans.Architectures: architecture
+using Oceananigans.DistributedComputations: Distributed
 using Oceananigans.Models: BoundaryConditionOperation
+using MPI
+using OceanBioME: chlorophyll
 
 export configure_output!
 
-# TODO: should pass other variables a generic fields 
+# Change RUN_NAME for a new set of output files.
+const RUN_NAME = "ice_glorys01_2_iron_3"
+const OUTPUT_DIRECTORY = normpath(joinpath(@__DIR__, "..", "output_ice"))
+const OUTPUT_INTERVAL = 1days
+
+function global_count(local_count, grid)
+    arch = architecture(grid)
+    return arch isa Distributed ?
+           MPI.Allreduce(local_count, +, arch.communicator) : local_count
+end
+
+# Daily snapshots of surface fields, free surface, and sea ice.
 function configure_output!(ocean, grid)
+    # sea_ice is created in main.jl before this call.
+    owner = parentmodule(@__MODULE__)
+    isdefined(owner, :sea_ice) || error(
+        "Create a module-level sea_ice in main.jl before " *
+        "calling configure_output!(ocean, grid)."
+    )
+    sea_ice = getfield(owner, :sea_ice)
 
-    flux1 = BoundaryConditionOperation(ocean.model.tracers.DIC1, :top, ocean.model)
-    flux2 = BoundaryConditionOperation(ocean.model.tracers.DIC2, :top, ocean.model)
+    ocean.model.grid === grid || error("grid is not the ocean model grid.")
+    sea_ice.model.grid === grid || error("Ocean and sea ice must share grid.")
 
-    # TODO: kind of weird that pco2 and fluxes are separate inputs to the fuction
-    ocean_outputs = merge(
-        ocean.model.tracers, 
-        ocean.model.velocities,  
-        (; flux1, flux2)
+    # Check writer registrations across all ranks.
+    duplicate_keys = Int(haskey(ocean.output_writers, :surface_jld2)) +
+                     Int(haskey(ocean.output_writers, :free_surface)) +
+                     Int(haskey(sea_ice.output_writers, :surface))
+    global_count(duplicate_keys, grid) == 0 || error(
+        "Output writers already configured. Call configure_output! only once."
     )
 
-    free_surface = ocean.model.free_surface.displacement
+    # Fluxes already include the ice limitation from Biogeochemistry.jl.
+    flux1 = BoundaryConditionOperation(ocean.model.tracers.DIC1, :top, ocean.model)
+    flux2 = BoundaryConditionOperation(ocean.model.tracers.DIC2, :top, ocean.model)
+    chl = chlorophyll(ocean.model.biogeochemistry, ocean.model)
+    ocean_outputs = merge(ocean.model.tracers,
+                          ocean.model.velocities,
+                          (; flux1, flux2, chl))
 
-    #sea_ice_outputs = merge((h = sea_ice.model.ice_thickness,
-    #                         ℵ = sea_ice.model.ice_concentration,
-    #                         T = sea_ice.model.ice_thermodynamics.top_surface_temperature),
-    #                         sea_ice.model.velocities)
-
-    ocean.output_writers[:surface_jld2] = JLD2Writer(
-        ocean.model, 
-        ocean_outputs;
-        schedule = TimeInterval(1days),
-        filename = "ocean_one_degree_surface_fields",
+    surface_writer = JLD2Writer(
+        ocean.model, ocean_outputs;
+        schedule = TimeInterval(OUTPUT_INTERVAL),
+        dir = OUTPUT_DIRECTORY,
+        filename = "surface_fields_$(RUN_NAME)",
         indices = (:, :, grid.Nz),
-        overwrite_existing = true
-        )
+        with_halos = true,
+        overwrite_existing = true,
+    )
 
-    ocean.output_writers[:free_surface] = JLD2Writer(
-        ocean.model, 
-        (; η = free_surface);
-        schedule = TimeInterval(1days),
-        filename = "ocean_one_degree_free_surface",
-        overwrite_existing = true
-        )
+    free_surface_writer = JLD2Writer(
+        ocean.model, (; η = ocean.model.free_surface.displacement);
+        schedule = TimeInterval(OUTPUT_INTERVAL),
+        dir = OUTPUT_DIRECTORY,
+        filename = "free_surface_$(RUN_NAME)",
+        with_halos = true,
+        overwrite_existing = true,
+    )
 
-    #sea_ice.output_writers[:surface] = JLD2Writer(sea_ice.model, sea_ice_outputs;
-    #                                              schedule = TimeInterval(1days),
-    #                                              filename = "sea_ice_one_degree_surface_fields",
-    #                                              overwrite_existing = true)
+    ice_outputs = (
+        h = sea_ice.model.ice_thickness,
+        ice_concentration = sea_ice.model.ice_concentration,
+    )
+    ice_writer = JLD2Writer(
+        sea_ice.model, ice_outputs;
+        schedule = TimeInterval(OUTPUT_INTERVAL),
+        dir = OUTPUT_DIRECTORY,
+        filename = "sea_ice_$(RUN_NAME)",
+        with_halos = true,
+        overwrite_existing = true,
+    )
 
-    # Netcdf output
-    #ocean.output_writers[:surface_nc] = NetCDFWriter(
-    #    ocean.model, ocean_outputs;
-    #    filename = "ocean_one_degree_surface_fields.nc",
-    #    schedule = AveragedTimeInterval(1days, window=1days),
-    #    indices=(:, :, grid.Nz),
-    #    overwrite_existing = true
-    #    #array_type = Array{Float32}
-    #)
+    ocean.output_writers[:surface_jld2] = surface_writer
+    ocean.output_writers[:free_surface] = free_surface_writer
+    sea_ice.output_writers[:surface] = ice_writer
 
+    return nothing
 end
 
 end

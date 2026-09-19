@@ -7,7 +7,7 @@ using NumericalEarth: regrid_bathymetry
 
 export build_grid
 
-function build_grid(arch; Nx=1440, Ny=720, Nz=50)
+function build_grid(arch; Nx=360, Ny=180, Nz=50) #Nx=1440, Ny=720, Nz=50
 
     # total depth of the ocean
     depth = 5000meters

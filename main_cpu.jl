@@ -66,7 +66,8 @@ using .CallbackSetup
 using .LandSetup
 
 # dates to run the simulation
-dates = DateTime(2000,1,1):Month(1):DateTime(2005,12,31)
+# dates = DateTime(2000,1,1):Month(1):DateTime(2005,12,31)
+dates = DateTime(2000,1,1):Month(1):DateTime(2006,1,1)
 
 grid = build_grid(arch; Nx=360, Ny=180)
 
@@ -78,8 +79,8 @@ forcing = build_alkalinity_forcing(
     lon       = 236.5425, # longitude location of release
     lat       = 48.1292,  # latitude location of release
     sigma     = 5.0,      # standard deviation of the patch (in pixels)
-    ti        = 1.0,      # day to start release
-    tf        = 2.0      # day to end release
+    ti        = 366.0,      # day to start release
+    tf        = 367.0      # day to end release
 )
 
 # ---------------------------------------------------------------------
@@ -135,11 +136,23 @@ coupled_model = OceanOnlyModel(
 simulation = Simulation(
         coupled_model;
         Δt = 20minutes,
-        stop_time = 365days
+        stop_time = 731days
     )
 
 add_progress_callback!(simulation)
 
 configure_output!(ocean, grid)
+
+checkpoint_dir = "/nfs/roberts/pi/pi_ey239/qi/checkpoints/global_ocean_1deg"
+mkpath(checkpoint_dir)
+
+simulation.output_writers[:checkpointer] = Checkpointer(
+    simulation.model;
+    schedule = WallTimeInterval(3hours),
+    dir = checkpoint_dir,
+    prefix = "global_ocean_1deg_checkpoint",
+    cleanup = true,
+    verbose = true
+)
 
 run!(simulation)

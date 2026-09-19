@@ -1,12 +1,16 @@
 #!/bin/bash
-#SBATCH --job-name=mpi
-#SBATCH --account=pi_me586
-#SBATCH --time=6:00:00
+#SBATCH --job-name=mpi_iron
+#SBATCH --account=pi_ey239
+#SBATCH --time=12:00:00
 #SBATCH --ntasks=2
+
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=2
+
 #SBATCH --partition gpu_h200
 #SBATCH --gpus-per-task=h200:1
 #SBATCH --cpus-per-task 2
-#SBATCH --mem=80G
+#SBATCH --mem=100G
 
 # 
 # NOTE: use --mem instead of --mem-per-cpu
@@ -23,13 +27,6 @@
 module purge
 module load Julia/1.12.4-linux-x86_64
 module load OpenMPI/5.0.3-GCC-13.3.0-CUDA-12.6.0
-
-
-#----------------------------------------------------------------------
-# PROJECT_DIR: the main project directory
-#----------------------------------------------------------------------
-
-PROJECT_DIR=project_pi_me586
 
 #----------------------------------------------------------------------
 # EXPORTS: these statements are necessary for CUDA-MPI to work properly
@@ -49,14 +46,16 @@ export UCX_ERROR_SIGNALS="SIGILL,SIGBUS,SIGFPE"
 # JULIA_DEPOT_PATH: where all downloaded julia packages will live
 # ** Note -> Best to have this in your project_pi_netID directory
 #----------------------------------------------------------------------
-
-export JULIA_DEPOT_PATH=/home/${USER}/${PROJECT_DIR}/${USER}/julia_depot
+echo "$USER"
+# export JULIA_DEPOT_PATH=/home/${USER}/project_pi_ey239/${USER}/julia_depot
+export JULIA_DEPOT_PATH=/nfs/roberts/pi/pi_ey239/qi/julia_depot
 
 #----------------------------------------------------------------------
 # ROOT: makes writing file paths easier, but is not completely necessary
 #----------------------------------------------------------------------
 
-ROOT=/home/${USER}/${PROJECT_DIR}/${USER}/global-ocean-model
+# ROOT=/home/${USER}/project_pi_ey239/${USER}/global-ocean-model
+ROOT=/nfs/roberts/pi/pi_ey239/qi/global-ocean-model
 
 [ ! -d $ROOT ] && echo "ERROR: $ROOT directory does not exist"
 
@@ -65,7 +64,7 @@ ROOT=/home/${USER}/${PROJECT_DIR}/${USER}/global-ocean-model
 # ** Note -> you really shouldn't have to change this
 #----------------------------------------------------------------------
 
-SIMULATION=${ROOT}/main.jl
+SIMULATION="${ROOT}/main.jl"
 
 [ ! -f $SIMULATION ] && echo "ERROR: $SIMULATION file does not exist"
 
@@ -102,4 +101,3 @@ source /home/${USER}/.copernicus-env
 #----------------------------------------------------------------------
 
 srun julia --project=${PROJECT} ${SIMULATION}
-
