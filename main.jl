@@ -68,12 +68,12 @@ arch = Distributed(
 # include source files
 # ---------------------------------------------------------------------
 include("src/Grid.jl")
-include("src/Biogeochemistry_Ice_iron.jl")
+include("src/Biogeochemistry.jl")
 include("src/Forcing.jl")
-include("src/Closures_iron.jl")
+include("src/Closures.jl")
 include("src/Atmosphere.jl")
-include("src/Initialization_Ice_iron.jl")
-include("src/Output_Ice_iron.jl")
+include("src/Initialization.jl")
+include("src/Output.jl")
 include("src/Callback.jl")
 include("src/Land.jl")
 
