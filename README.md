@@ -19,7 +19,9 @@ Global ocean simulation with code split into modules instead of one giant file.
 ├── Project.toml          <-- configuration file
 ├── README.md             <-- top level documentation
 ├── src/                  <-- folder with modules to build the simulation 
-└── submit_mpi.sh         <-- script to submit job to slurm cluster 
+├── submit_mpi.sh         <-- script to submit job to slurm cluster
+├── plankton_diagnostics.ipynb       <-- plots surface P, Z, and estimated grazing rates
+└── chlorophyll_comparison.ipynb     <-- compares monthly model chlorophyll with GlobColour satellite data
 ```
 
 ## Running the simulation
